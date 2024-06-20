@@ -1,0 +1,7 @@
+@exportHeader Cookie TOKEN
+[Host]
+http://localhost:${PORT}/authc
+
+[Method]
+GET
+

@@ -1,0 +1,14 @@
+@exportBody @sh(jq -r '.token') TOKEN
+[Host]
+http://localhost:${PORT}/auth
+
+# [Query]
+# id=1
+
+[Method]
+GET
+
+# [Body]
+# {
+#    "some": "json"
+# }

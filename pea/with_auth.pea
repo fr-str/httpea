@@ -1,0 +1,16 @@
+[Host]
+http://localhost:43243/protected
+
+[Headers]
+Authorization: Bearer ${TOKEN}
+
+# [Query]
+# id=1
+
+[Method]
+GET
+
+# [Body]
+# {
+#    "some": "json"
+# }
