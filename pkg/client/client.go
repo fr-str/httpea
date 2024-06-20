@@ -18,7 +18,18 @@ type Response struct {
 	HeaderExports []pea.Export
 }
 
-func NewRequest(file string, d pea.Pea) (*Response, error) {
+type Client struct {
+	*http.Client
+	AutoCode map[string]func() (*Response, error)
+}
+
+func New() *Client {
+	return &Client{
+		AutoCode: map[string]func() (*Response, error){},
+	}
+}
+
+func (c *Client) Request(d pea.Pea) (*Response, error) {
 	r, err := http.NewRequest(d.Method, d.Host, bytes.NewBuffer([]byte(d.Body)))
 	if err != nil {
 		return nil, err
@@ -30,6 +41,7 @@ func NewRequest(file string, d pea.Pea) (*Response, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	duration := time.Since(ts).Round(time.Microsecond)
 	log.Debug("request ", d.Method, d.Host, d.Query, d.Headers)
 	re := &Response{}
@@ -39,4 +51,17 @@ func NewRequest(file string, d pea.Pea) (*Response, error) {
 	re.HeaderExports = d.HeaderExports
 
 	return re, nil
+}
+
+func (c *Client) LoadAuto(env map[string]string) {
+	data := pea.GetAutoDataFromFile()
+	for _, d := range data {
+		c.AutoCode[d[0]] = func() (*Response, error) {
+			p, err := pea.GetRequestDataFromFile(d[1], env)
+			if err != nil {
+				return nil, err
+			}
+			return c.Request(p)
+		}
+	}
 }

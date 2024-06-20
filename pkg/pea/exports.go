@@ -15,11 +15,12 @@ var (
 	RegExportBody   = regexp.MustCompile(`@exportBody (.+) ([\w|\d]+)`)
 	RegExportHeader = regexp.MustCompile(`@exportHeader (.+) ([\w|\d]+)`)
 	RegShell        = regexp.MustCompile(`@sh\((.+)\)`)
+	RegCode         = regexp.MustCompile(`@(\d{3}) (.+)`)
 )
 
 type Export struct {
-	EnvName string
-	Expr    ExprFunc
+	Name string
+	Expr ExprFunc
 }
 
 type ExprFunc func(in string) (string, error)
@@ -27,12 +28,13 @@ type ExprFunc func(in string) (string, error)
 func (p *Pea) parseExports(s string) {
 	matches := RegExportBody.FindAllStringSubmatch(s, -1)
 	for _, v := range matches {
-		p.BodyExports = append(p.BodyExports, Export{EnvName: v[2], Expr: determineExpr(v[1])})
+		p.BodyExports = append(p.BodyExports, Export{Name: v[2], Expr: determineExpr(v[1])})
 	}
 	matches = RegExportHeader.FindAllStringSubmatch(s, -1)
 	for _, v := range matches {
-		p.HeaderExports = append(p.HeaderExports, Export{EnvName: v[2], Expr: determineExpr(v[1])})
+		p.HeaderExports = append(p.HeaderExports, Export{Name: v[2], Expr: determineExpr(v[1])})
 	}
+
 }
 
 func determineExpr(s string) ExprFunc {

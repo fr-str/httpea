@@ -12,6 +12,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/fr-str/httpea/internal/config"
 	"github.com/fr-str/httpea/internal/log"
+	"github.com/fr-str/httpea/pkg/client"
 	"github.com/fr-str/httpea/pkg/components"
 	"github.com/fr-str/httpea/pkg/pea"
 )
@@ -19,6 +20,7 @@ import (
 type model struct {
 	focus uint
 	// TODO: not implemented
+	client    *client.Client
 	selected  []string
 	keys      keyMap
 	help      help.Model
@@ -42,6 +44,7 @@ func InitialModel() model {
 		keys:    keys,
 		help:    help.New(),
 		ReqView: reqView{Model: viewport.New(10, 20)},
+		client:  client.New(),
 	}
 	m.LoadEnv()
 
@@ -59,6 +62,7 @@ func (m *model) LoadEnv() {
 		b, a, _ := strings.Cut(v, "=")
 		m.Env[b] = a
 	}
+	m.client.LoadAuto(m.Env)
 }
 
 func (m model) Init() tea.Cmd {
@@ -68,7 +72,7 @@ func (m model) Init() tea.Cmd {
 func initTable() components.Table {
 	rows := []components.Row{}
 	for _, f := range listFiles() {
-		d, _ := pea.GetDataFromFile(f, map[string]string{})
+		d, _ := pea.GetRequestDataFromFile(f, map[string]string{})
 		rows = append(rows, components.Row{"", d.Method, f})
 	}
 	col := []components.Column{

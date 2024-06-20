@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -49,6 +50,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil {
 			m.ReqView.SetContent(msg.err.Error())
 		}
+		m.client.LoadAuto(m.Env)
 
 	case tea.WindowSizeMsg:
 		m.help.Width = msg.Width
@@ -140,15 +142,38 @@ func (m *model) handleEnter() {
 	// if len(m.selected) == 0 {
 	// }
 	file := m.FileTable.SelectedRow()[2]
-	d, err := pea.GetDataFromFile(file, m.Env)
+	d, err := pea.GetRequestDataFromFile(file, m.Env)
 	if err != nil {
 		m.ReqView.SetContent(err.Error())
 		return
 	}
-	resp, err := client.NewRequest(file, d)
+	resp, err := m.client.Request(d)
 	if err != nil {
 		m.ReqView.SetContent(err.Error())
 		return
+	}
+
+	if resp != nil {
+		log.Debug("[dupa] m.client.AutoCode: ", m.client.AutoCode)
+		if a, ok := m.client.AutoCode[strconv.Itoa(resp.StatusCode)]; ok {
+			resp, err = a()
+			if err != nil {
+				m.ReqView.SetContent(err.Error())
+				return
+			}
+
+			m.doExports(resp)
+			d, err := pea.GetRequestDataFromFile(file, m.Env)
+			if err != nil {
+				m.ReqView.SetContent(err.Error())
+				return
+			}
+			resp, err = m.client.Request(d)
+			if err != nil {
+				m.ReqView.SetContent(err.Error())
+				return
+			}
+		}
 	}
 
 	m.ReqView.reqDuration = resp.Duration
@@ -157,6 +182,17 @@ func (m *model) handleEnter() {
 	m.ReqView.SetContent(m.ReqView.body)
 	m.doExports(resp)
 }
+
+// func (m *model) doAuto() {
+// 	for _, a := range m.client.AutoCode {
+// 		resp, err := a()
+// 		if err != nil {
+// 			m.ReqView.SetContent(err.Error())
+// 			continue
+// 		}
+// 		m.doExports(resp)
+// 	}
+// }
 
 func (m *model) doExports(resp *client.Response) {
 	body := m.ReqView.body
@@ -168,13 +204,14 @@ func (m *model) doExports(resp *client.Response) {
 			errs += err.Error()
 		}
 
-		m.Env[expr.EnvName] = v
-		log.Debug("expr.EnvName[]: ", expr.EnvName, v)
+		m.Env[expr.Name] = v
+		log.Debug("expr.EnvName[]: ", expr.Name, v)
 	}
 
+	log.Debug("[dupa] resp.HeaderExports: ", len(resp.HeaderExports))
 	for _, expr := range resp.HeaderExports {
 		headerName, _ := expr.Expr(body)
-		m.Env[expr.EnvName] = resp.Header.Get(headerName)
+		m.Env[expr.Name] = resp.Header.Get(headerName)
 	}
 
 	if len(errs) != 0 {
@@ -214,7 +251,7 @@ func (m model) handleFocus(msg tea.Msg) (model, tea.Cmd) {
 		m.FileTable.Focus()
 		rows := []components.Row{}
 		for _, f := range listFiles() {
-			d, _ := pea.GetDataFromFile(f, m.Env)
+			d, _ := pea.GetRequestDataFromFile(f, m.Env)
 			rows = append(rows, components.Row{m.reSelect(f), d.Method, f})
 		}
 		m.FileTable.SetRows(rows)

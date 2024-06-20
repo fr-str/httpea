@@ -21,7 +21,7 @@ type Pea struct {
 	BodyExports   []Export
 }
 
-func GetDataFromFile(file string, env map[string]string) (Pea, error) {
+func GetRequestDataFromFile(file string, env map[string]string) (Pea, error) {
 	d := Pea{}
 	b, err := os.ReadFile(util.GetPeaFilePath(file))
 	if err != nil {
@@ -43,6 +43,17 @@ func GetDataFromFile(file string, env map[string]string) (Pea, error) {
 	d.parseExports(s)
 
 	return d, nil
+}
+
+func GetAutoDataFromFile() [][2]string {
+	data := util.ReadPeaFile("auto_pea")
+	matches := RegCode.FindAllStringSubmatch(data, -1)
+	out := make([][2]string, 0, len(matches))
+	for _, matche := range matches {
+		out = append(out, [2]string{matche[1], matche[2]})
+	}
+
+	return out
 }
 
 const (
