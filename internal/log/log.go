@@ -30,7 +30,7 @@ func Debug(msg string, m ...any) {
 		meta = meta[:len(meta)-1]
 	}
 	_, file, line, _ := runtime.Caller(1)
-	fmt.Fprintf(config.LogFile, logFormatStr,
+	fmt.Fprintf(config.DebugLogFile, logFormatStr,
 		time.Now().Format(timeFormat),
 		DebugText,
 		fmt.Sprintf("%s:%d", filepath.Base(file), line),

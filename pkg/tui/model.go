@@ -12,7 +12,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/fr-str/httpea/internal/config"
 	"github.com/fr-str/httpea/internal/log"
-	"github.com/fr-str/httpea/pkg/client"
 	"github.com/fr-str/httpea/pkg/components"
 	"github.com/fr-str/httpea/pkg/pea"
 )
@@ -20,14 +19,13 @@ import (
 type model struct {
 	focus uint
 	// TODO: not implemented
-	client    *client.Client
+	client    *pea.Client
 	selected  []string
 	keys      keyMap
 	help      help.Model
 	FileTable components.Table
 	FileView  viewport.Model
 	ReqView   reqView
-	Env       map[string]string
 }
 
 type reqView struct {
@@ -44,25 +42,13 @@ func InitialModel() model {
 		keys:    keys,
 		help:    help.New(),
 		ReqView: reqView{Model: viewport.New(10, 20)},
-		client:  client.New(),
+		client:  pea.NewClient(),
 	}
-	m.LoadEnv()
-
 	m.FileTable = initTable()
 	m.FileView = viewport.New(m.FileTable.Width(), m.FileTable.Height())
 	m.FileView.Style = baseStyle
 	m.ReqView.Style = baseStyle
 	return m
-}
-
-func (m *model) LoadEnv() {
-	osEnv := os.Environ()
-	m.Env = make(map[string]string, len(osEnv))
-	for _, v := range osEnv {
-		b, a, _ := strings.Cut(v, "=")
-		m.Env[b] = a
-	}
-	m.client.LoadAuto(m.Env)
 }
 
 func (m model) Init() tea.Cmd {

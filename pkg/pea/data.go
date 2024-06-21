@@ -21,41 +21,6 @@ type Pea struct {
 	BodyExports   []Export
 }
 
-func GetRequestDataFromFile(file string, env map[string]string) (Pea, error) {
-	d := Pea{}
-	b, err := os.ReadFile(util.GetPeaFilePath(file))
-	if err != nil {
-		return d, err
-	}
-
-	s := string(b)
-	s = RemoveComments(s)
-	s = ResolveEnvVars(s, env)
-	fields := getFields(s)
-	d.Host = fields[HOST]
-	d.Query = fields[QUERY]
-	d.Body = fields[BODY]
-	d.Method = fields[METHOD]
-	if d.Method == "" {
-		d.Method = http.MethodGet
-	}
-	d.Headers = buildHeaders(fields[HEADERS])
-	d.parseExports(s)
-
-	return d, nil
-}
-
-func GetAutoDataFromFile() [][2]string {
-	data := util.ReadPeaFile("auto_pea")
-	matches := RegCode.FindAllStringSubmatch(data, -1)
-	out := make([][2]string, 0, len(matches))
-	for _, matche := range matches {
-		out = append(out, [2]string{matche[1], matche[2]})
-	}
-
-	return out
-}
-
 const (
 	HOST    = "[host]"
 	HEADERS = "[headers]"
@@ -70,6 +35,49 @@ var (
 	regEnvVar   = regexp.MustCompile(`\$\{.+\}`)
 	RegCategory = regexp.MustCompile(`(?m)^\[\w+\]`)
 )
+
+func GetRequestDataFromFile(file string, env map[string]string) (Pea, error) {
+	d := Pea{}
+	b, err := os.ReadFile(util.GetPeaFilePath(file))
+	if err != nil {
+		return d, err
+	}
+
+	s := string(b)
+	s = regComment.ReplaceAllString(s, "")
+	s = ResolveEnvVars(s, env)
+	fields := getFields(s)
+	d.Host = fields[HOST]
+	d.Query = fields[QUERY]
+	d.Body = fields[BODY]
+	d.Method = fields[METHOD]
+	if d.Method == "" {
+		d.Method = http.MethodGet
+	}
+	d.Headers = map[string][]string{}
+	for _, v := range strings.Split(fields[HEADERS], "\n") {
+		b, a, f := strings.Cut(v, ":")
+		if !f {
+			// log.Debug("BAD CUT", v)
+			continue
+		}
+		d.Headers[b] = cleanSlice(strings.Split(a, ","))
+	}
+	d.parseExports(s)
+
+	return d, nil
+}
+
+func getAutoDataFromFile() [][2]string {
+	data := util.ReadPeaFile("auto_pea")
+	matches := RegCode.FindAllStringSubmatch(data, -1)
+	out := make([][2]string, 0, len(matches))
+	for _, matche := range matches {
+		out = append(out, [2]string{matche[1], matche[2]})
+	}
+
+	return out
+}
 
 func ResolveEnvVars(s string, en map[string]string) string {
 	s = regEnvVar.ReplaceAllStringFunc(s, func(b string) string {
@@ -86,19 +94,6 @@ func ResolveEnvVars(s string, en map[string]string) string {
 	})
 	return s
 
-}
-
-func buildHeaders(s string) map[string][]string {
-	m := map[string][]string{}
-	for _, v := range strings.Split(s, "\n") {
-		b, a, f := strings.Cut(v, ":")
-		if !f {
-			log.Debug("BAD CUT", v)
-			continue
-		}
-		m[b] = cleanSlice(strings.Split(a, ","))
-	}
-	return m
 }
 
 func cleanSlice(s []string) []string {
@@ -121,8 +116,4 @@ func getFields(s string) map[string]string {
 		m[key] = strings.TrimSpace(s[start:end])
 	}
 	return m
-}
-
-func RemoveComments(s string) string {
-	return regComment.ReplaceAllString(s, "")
 }

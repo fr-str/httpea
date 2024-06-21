@@ -8,11 +8,10 @@ import (
 )
 
 var (
-	baseStyle = lipgloss.NewStyle().
-			BorderStyle(lipgloss.RoundedBorder())
+	lightYellow   = lipgloss.Color("229")
 	durationStyle = lipgloss.NewStyle().Bold(true).Foreground(lightYellow)
 	fileStyle     = lipgloss.NewStyle().Bold(true).Foreground(lightYellow)
-	lightYellow   = lipgloss.Color("229")
+	baseStyle     = lipgloss.NewStyle().BorderStyle(lipgloss.RoundedBorder())
 )
 
 // TODO: create a zone layout

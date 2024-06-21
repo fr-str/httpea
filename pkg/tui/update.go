@@ -9,7 +9,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 
@@ -20,7 +19,6 @@ import (
 	"github.com/fr-str/httpea/internal/log"
 	"github.com/fr-str/httpea/internal/util"
 	"github.com/fr-str/httpea/internal/util/env"
-	"github.com/fr-str/httpea/pkg/client"
 	"github.com/fr-str/httpea/pkg/components"
 	"github.com/fr-str/httpea/pkg/pea"
 )
@@ -49,8 +47,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case editDone:
 		if msg.err != nil {
 			m.ReqView.SetContent(msg.err.Error())
+		} else {
+			m.client.LoadAuto()
 		}
-		m.client.LoadAuto(m.Env)
 
 	case tea.WindowSizeMsg:
 		m.help.Width = msg.Width
@@ -61,6 +60,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 		case key.Matches(msg, m.keys.Quit):
 			return m, tea.Quit
+
 		case key.Matches(msg, m.keys.Tab):
 			m.focus++
 
@@ -74,149 +74,72 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, openEditor(util.GetPeaFilePath(f))
 
 		case key.Matches(msg, m.keys.Space):
-			s := m.FileTable.SelectedRow()[0]
-			if s == "" {
-				m.selectFile(m.FileTable.SelectedRow()[2])
-			} else {
-				m.deSelectFile(m.FileTable.SelectedRow()[2])
-			}
-			for _, r := range m.FileTable.Rows() {
-				idx := slices.Index(m.selected, r[2])
-				if idx != -1 {
-					r[0] = fmt.Sprint(idx + 1)
-					continue
-				}
-				r[0] = ""
-			}
-
-			m.FileTable.UpdateViewport()
+			m.handleSelecting()
 
 		case key.Matches(msg, m.keys.Enter):
-			m.handleEnter()
+			m.handleRequest()
 
 		case key.Matches(msg, m.keys.Help):
 			m.help.ShowAll = !m.help.ShowAll
 		}
 	}
+
 	m, cmd = m.handleFocus(msg)
 	if len(m.FileTable.SelectedRow()) > 0 {
 		fileContent := util.ReadPeaFile(m.FileTable.SelectedRow()[2])
-		fileContent = pea.ResolveEnvVars(fileContent, m.Env)
-		m.FileView.SetContent(colorFileContent(fileContent))
+		fileContent = pea.ResolveEnvVars(fileContent, m.client.Env)
+		m.FileView.SetContent(pea.RegCategory.ReplaceAllStringFunc(fileContent, func(b string) string {
+			ss := fileStyle.Render(string(b))
+			return ss
+		}))
 	}
 	return m, cmd
 }
 
-func colorFileContent(s string) string {
-	b := pea.RegCategory.ReplaceAllStringFunc(s, func(b string) string {
-		ss := fileStyle.Render(string(b))
-		return ss
-	})
-	return b
-}
-
-func (m *model) selectFile(f string) {
-	m.selected = append(m.selected, f)
-}
-
-func (m *model) deSelectFile(f string) {
-	idx := slices.Index(m.selected, f)
-	log.Debug("m.selected: ", m.selected, len(m.selected))
-	log.Debug("idx: ", idx)
-	if idx == -1 {
-		return
-	}
-	m.selected = slices.Delete(m.selected, idx, idx+1)
-	log.Debug("m.selected: ", m.selected, len(m.selected))
-}
-
-func (m *model) reSelect(f string) string {
-	idx := slices.Index(m.selected, f)
-	if idx == -1 {
-		return ""
-	}
-	return fmt.Sprint(idx + 1)
-}
-
-func (m *model) handleEnter() {
-	// if len(m.selected) == 0 {
-	// }
-	file := m.FileTable.SelectedRow()[2]
-	d, err := pea.GetRequestDataFromFile(file, m.Env)
-	if err != nil {
-		m.ReqView.SetContent(err.Error())
-		return
-	}
-	resp, err := m.client.Request(d)
-	if err != nil {
-		m.ReqView.SetContent(err.Error())
-		return
-	}
-
-	if resp != nil {
-		log.Debug("[dupa] m.client.AutoCode: ", m.client.AutoCode)
-		if a, ok := m.client.AutoCode[strconv.Itoa(resp.StatusCode)]; ok {
-			resp, err = a()
-			if err != nil {
-				m.ReqView.SetContent(err.Error())
-				return
-			}
-
-			m.doExports(resp)
-			d, err := pea.GetRequestDataFromFile(file, m.Env)
-			if err != nil {
-				m.ReqView.SetContent(err.Error())
-				return
-			}
-			resp, err = m.client.Request(d)
-			if err != nil {
-				m.ReqView.SetContent(err.Error())
-				return
-			}
+func (m *model) handleSelecting() {
+	// table has 3 columns,
+	// number | method | filename
+	number := m.FileTable.SelectedRow()[0]
+	if number == "" {
+		//select file
+		m.selected = append(m.selected, m.FileTable.SelectedRow()[2])
+	} else {
+		// deselect a file
+		idx := slices.Index(m.selected, m.FileTable.SelectedRow()[2])
+		log.Debug("m.selected: ", m.selected, len(m.selected))
+		log.Debug("idx: ", idx)
+		if idx == -1 {
+			return
 		}
+		m.selected = slices.Delete(m.selected, idx, idx+1)
+		log.Debug("m.selected: ", m.selected, len(m.selected))
+	}
+
+	// number selected files in view
+	for _, r := range m.FileTable.Rows() {
+		idx := slices.Index(m.selected, r[2])
+		if idx != -1 {
+			r[0] = fmt.Sprint(idx + 1)
+			continue
+		}
+		r[0] = ""
+	}
+
+	m.FileTable.UpdateViewport()
+}
+
+func (m *model) handleRequest() {
+	file := m.FileTable.SelectedRow()[2]
+	resp, err := m.client.Request(file)
+	if err != nil {
+		m.ReqView.SetContent(err.Error())
+		return
 	}
 
 	m.ReqView.reqDuration = resp.Duration
 	m.ReqView.body = getBody(resp.Response)
 	m.ReqView.header = resp.Header
 	m.ReqView.SetContent(m.ReqView.body)
-	m.doExports(resp)
-}
-
-// func (m *model) doAuto() {
-// 	for _, a := range m.client.AutoCode {
-// 		resp, err := a()
-// 		if err != nil {
-// 			m.ReqView.SetContent(err.Error())
-// 			continue
-// 		}
-// 		m.doExports(resp)
-// 	}
-// }
-
-func (m *model) doExports(resp *client.Response) {
-	body := m.ReqView.body
-	errs := ""
-	log.Debug("resp.BodyExports: ", len(resp.BodyExports))
-	for _, expr := range resp.BodyExports {
-		v, err := expr.Expr(body)
-		if err != nil {
-			errs += err.Error()
-		}
-
-		m.Env[expr.Name] = v
-		log.Debug("expr.EnvName[]: ", expr.Name, v)
-	}
-
-	log.Debug("[dupa] resp.HeaderExports: ", len(resp.HeaderExports))
-	for _, expr := range resp.HeaderExports {
-		headerName, _ := expr.Expr(body)
-		m.Env[expr.Name] = resp.Header.Get(headerName)
-	}
-
-	if len(errs) != 0 {
-		m.ReqView.SetContent(errs + "\n" + body)
-	}
 }
 
 func getBody(resp *http.Response) string {
@@ -251,7 +174,7 @@ func (m model) handleFocus(msg tea.Msg) (model, tea.Cmd) {
 		m.FileTable.Focus()
 		rows := []components.Row{}
 		for _, f := range listFiles() {
-			d, _ := pea.GetRequestDataFromFile(f, m.Env)
+			d, _ := pea.GetRequestDataFromFile(f, m.client.Env)
 			rows = append(rows, components.Row{m.reSelect(f), d.Method, f})
 		}
 		m.FileTable.SetRows(rows)
@@ -263,6 +186,14 @@ func (m model) handleFocus(msg tea.Msg) (model, tea.Cmd) {
 	}
 
 	return m, cmd
+}
+
+func (m *model) reSelect(f string) string {
+	idx := slices.Index(m.selected, f)
+	if idx == -1 {
+		return ""
+	}
+	return fmt.Sprint(idx + 1)
 }
 
 // TODO: create a zone layout

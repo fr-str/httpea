@@ -16,7 +16,7 @@ func TestMain(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	config.LogFile = f
+	config.DebugLogFile = f
 	fmt.Fprintln(f, "------------------------- dupa -------------------------")
 }
 

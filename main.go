@@ -17,7 +17,7 @@ func main() {
 			os.Exit(1)
 		}
 		defer f.Close()
-		config.LogFile = f
+		config.DebugLogFile = f
 	}
 
 	startTUI()

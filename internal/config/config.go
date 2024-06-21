@@ -11,4 +11,4 @@ var (
 	Debug      = env.Get("HTTPEA_DEBUG", false)
 	FileFolder = env.Get("HTTPEA_FOLDER", "pea")
 )
-var LogFile io.Writer = io.Discard
+var DebugLogFile io.Writer = io.Discard
