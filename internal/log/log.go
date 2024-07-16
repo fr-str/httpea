@@ -24,7 +24,7 @@ const (
 func Debug(msg string, m ...any) {
 	meta := ""
 	for _, v := range m {
-		meta += fmt.Sprintf(" %v,", v)
+		meta += fmt.Sprintf(" %v", v)
 	}
 	if len(meta) > 2 {
 		meta = meta[:len(meta)-1]

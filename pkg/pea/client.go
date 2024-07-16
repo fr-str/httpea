@@ -57,15 +57,19 @@ func (c *Client) Request(file string) (*Response, error) {
 		return nil, err
 	}
 	r.Header = p.Headers
-	q := r.URL.Query()
-	for _, v := range strings.Split(p.Query, "\n") {
-		k, v, f := strings.Cut(v, "=")
-		if !f {
-			return nil, fmt.Errorf("invalid query value: '%s'", v)
+	if p.Query != "" {
+		log.Debug("[dupa] p.Query: '", p.Query, "'")
+		q := r.URL.Query()
+		for _, v := range strings.Split(p.Query, "\n") {
+			k, v, f := strings.Cut(v, "=")
+			if !f {
+				return nil, fmt.Errorf("invalid query value: '%s'", v)
+			}
+			q.Add(k, v)
 		}
-		q.Add(k, v)
+		r.URL.RawQuery = q.Encode()
 	}
-	r.URL.RawQuery = q.Encode()
+
 	log.Debug("[dupa] r.URL.RawQuery: ", r.URL.RawQuery)
 
 	ts := time.Now()
