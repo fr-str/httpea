@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/help"
+	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/fr-str/httpea/internal/config"
@@ -17,15 +18,16 @@ import (
 )
 
 type model struct {
-	focus uint
+	focus  uint
+	client *pea.Client
 	// TODO: not implemented
-	client    *pea.Client
 	selected  []string
 	keys      keyMap
 	help      help.Model
 	FileTable components.Table
 	FileView  viewport.Model
 	ReqView   reqView
+	Spinner   spinnerDupa
 }
 
 type reqView struct {
@@ -37,13 +39,23 @@ type reqView struct {
 	ShowHeaders   bool
 }
 
+type spinnerDupa struct {
+	spinner.Model
+	running bool
+}
+
 func InitialModel() model {
 	m := model{
 		keys:    keys,
 		help:    help.New(),
 		ReqView: reqView{Model: viewport.New(10, 20)},
 		client:  pea.NewClient(),
+		Spinner: spinnerDupa{
+			spinner.New(spinner.WithSpinner(spinner.Points)),
+			false,
+		},
 	}
+
 	m.FileTable = initTable()
 	m.FileView = viewport.New(m.FileTable.Width(), m.FileTable.Height())
 	m.FileView.Style = baseStyle

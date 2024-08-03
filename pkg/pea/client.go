@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -43,7 +42,6 @@ func (c *Client) loadEnv() {
 		b, a, _ := strings.Cut(v, "=")
 		c.Env[b] = a
 	}
-	c.LoadAuto()
 }
 
 func (c *Client) Request(file string) (*Response, error) {
@@ -87,28 +85,6 @@ func (c *Client) Request(file string) (*Response, error) {
 	re.BodyExports = p.BodyExports
 	re.HeaderExports = p.HeaderExports
 
-	if resp != nil && resp.StatusCode == http.StatusForbidden {
-		a, ok := c.Auth[strconv.Itoa(http.StatusForbidden)]
-		if !ok {
-			return re, c.doExports(re)
-		}
-
-		resp, err := a()
-		if err != nil {
-			return nil, err
-		}
-
-		if err := c.doExports(resp); err != nil {
-			return nil, err
-		}
-
-		resp, err = c.Request(file)
-		if err != nil {
-			return nil, err
-		}
-		re = resp
-	}
-
 	return re, c.doExports(re)
 }
 
@@ -145,13 +121,4 @@ func (c *Client) doExports(resp *Response) error {
 		return errors.Join(errs...)
 	}
 	return nil
-}
-
-func (c *Client) LoadAuto() {
-	data := getAutoDataFromFile()
-	for _, d := range data {
-		c.Auth[d[0]] = func() (*Response, error) {
-			return c.Request(d[1])
-		}
-	}
 }

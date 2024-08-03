@@ -26,9 +26,9 @@ func Debug(msg string, m ...any) {
 	for _, v := range m {
 		meta += fmt.Sprintf(" %v", v)
 	}
-	if len(meta) > 2 {
-		meta = meta[:len(meta)-1]
-	}
+	// if len(meta) > 2 {
+	// 	meta = meta[:len(meta)-1]
+	// }
 	_, file, line, _ := runtime.Caller(1)
 	fmt.Fprintf(config.DebugLogFile, logFormatStr,
 		time.Now().Format(timeFormat),

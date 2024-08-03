@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/fr-str/httpea/internal/config"
@@ -39,7 +40,7 @@ func timeIt(start time.Time, name string) {
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	log.Debug("----------------------new loop----------------------")
+	log.Debug("----------------------new update----------------------")
 	defer timeIt(time.Now(), "Update")
 
 	var cmd tea.Cmd
@@ -47,13 +48,31 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case editDone:
 		if msg.err != nil {
 			m.ReqView.SetContent(msg.err.Error())
-		} else {
-			m.client.LoadAuto()
 		}
 
 	case tea.WindowSizeMsg:
 		m.help.Width = msg.Width
 		m.handleSizes(msg)
+	case spinner.TickMsg:
+		if m.Spinner.running {
+			m.Spinner.Model, cmd = m.Spinner.Update(msg)
+			return m, cmd
+		}
+
+	case reqError:
+		m.Spinner.running = false
+		m.ReqView.reqDuration = 0
+		m.ReqView.body = msg.Error()
+		m.ReqView.SetContent(m.ReqView.body)
+
+	case *pea.Response:
+		m.Spinner.running = false
+
+		m.ReqView.reqDuration = msg.Duration
+		m.ReqView.body = getBody(msg.Response)
+		m.ReqView.header = msg.Header
+		m.ReqView.SetContent(m.ReqView.body)
+		return m, cmd
 
 	case tea.KeyMsg:
 		log.Debug(msg.String())
@@ -63,6 +82,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case key.Matches(msg, m.keys.Tab):
 			m.focus++
+			return m, cmd
 
 		case key.Matches(msg, m.keys.Up):
 		case key.Matches(msg, m.keys.Down):
@@ -75,12 +95,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case key.Matches(msg, m.keys.Space):
 			m.handleSelecting()
+			return m, cmd
 
 		case key.Matches(msg, m.keys.Enter):
-			m.handleRequest()
+			file := m.FileTable.SelectedRow()[2]
+			m.Spinner.running = true
+			return m, tea.Batch(handleRequest(m.client, file), m.Spinner.Tick)
 
 		case key.Matches(msg, m.keys.Help):
 			m.help.ShowAll = !m.help.ShowAll
+			return m, cmd
 		}
 	}
 
@@ -128,18 +152,17 @@ func (m *model) handleSelecting() {
 	m.FileTable.UpdateViewport()
 }
 
-func (m *model) handleRequest() {
-	file := m.FileTable.SelectedRow()[2]
-	resp, err := m.client.Request(file)
-	if err != nil {
-		m.ReqView.SetContent(err.Error())
-		return
-	}
+type response *pea.Response
+type reqError error
 
-	m.ReqView.reqDuration = resp.Duration
-	m.ReqView.body = getBody(resp.Response)
-	m.ReqView.header = resp.Header
-	m.ReqView.SetContent(m.ReqView.body)
+func handleRequest(c *pea.Client, file string) tea.Cmd {
+	return func() tea.Msg {
+		resp, err := c.Request(file)
+		if err != nil {
+			return reqError(err)
+		}
+		return resp
+	}
 }
 
 func getBody(resp *http.Response) string {

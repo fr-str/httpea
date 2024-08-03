@@ -48,7 +48,7 @@ func GetRequestDataFromFile(file string, env map[string]string) (Pea, error) {
 	s = ResolveEnvVars(s, env)
 	fields := getFields(s)
 	d.Host = fields[HOST]
-	d.Query = fields[QUERY]
+	d.Query = strings.TrimSpace(fields[QUERY])
 	d.Body = fields[BODY]
 	d.Method = fields[METHOD]
 	if d.Method == "" {
