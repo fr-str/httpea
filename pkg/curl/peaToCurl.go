@@ -26,7 +26,7 @@ func PeaToCurl(p pea.Pea) (string, error) {
 	if len(p.Headers) != 0 {
 		for k, v := range p.Headers {
 			w(" \\\n\t")
-			w(fmt.Sprintf("-H '%s: %s'", k, v))
+			w(fmt.Sprintf("-H '%s: %s'", k, strings.Join(v, ",")))
 		}
 	}
 
