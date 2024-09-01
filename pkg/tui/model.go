@@ -34,7 +34,7 @@ type reqView struct {
 	viewport.Model
 	reqDuration   time.Duration
 	totalDuration time.Duration
-	body          string
+	Body          string
 	header        http.Header
 	ShowHeaders   bool
 }

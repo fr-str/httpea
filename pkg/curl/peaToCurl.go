@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/fr-str/httpea/internal/util"
 	"github.com/fr-str/httpea/pkg/pea"
 )
 
@@ -23,18 +24,16 @@ func PeaToCurl(p pea.Pea) (string, error) {
 	w(" ")
 	w("-X " + strings.ToUpper(p.Method))
 
-	if len(p.Headers) != 0 {
-		for k, v := range p.Headers {
-			w(" \\\n\t")
-			w(fmt.Sprintf("-H '%s: %s'", k, strings.Join(v, ",")))
-		}
+	for k, v := range p.Headers {
+		w(" \\\n\t")
+		w(fmt.Sprintf("-H '%s: %s'", k, strings.Join(v, ",")))
 	}
 
 	if len(p.Body) > 0 {
 		w(" \\\n\t")
 		w("-d ")
 		w("'")
-		w(string(must(json.Marshal(json.RawMessage(p.Body)))))
+		w(string(util.Must(json.Marshal(json.RawMessage(p.Body)))))
 		w("'")
 	}
 
@@ -43,11 +42,4 @@ func PeaToCurl(p pea.Pea) (string, error) {
 
 func joinQuery(s string) string {
 	return "?" + strings.Join(strings.Split(s, "\n"), "&")
-}
-
-func must[T any](v T, err error) T {
-	if err != nil {
-		panic(err)
-	}
-	return v
 }

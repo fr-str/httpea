@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"slices"
@@ -53,6 +52,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.help.Width = msg.Width
 		m.handleSizes(msg)
+
 	case spinner.TickMsg:
 		if m.Spinner.running {
 			m.Spinner.Model, cmd = m.Spinner.Update(msg)
@@ -62,16 +62,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case reqError:
 		m.Spinner.running = false
 		m.ReqView.reqDuration = 0
-		m.ReqView.body = msg.Error()
-		m.ReqView.SetContent(m.ReqView.body)
+		m.ReqView.Body = msg.Error()
+		m.ReqView.SetContent(m.ReqView.Body)
 
 	case *pea.Response:
 		m.Spinner.running = false
 
 		m.ReqView.reqDuration = msg.Duration
-		m.ReqView.body = getBody(msg.Response)
+		m.ReqView.Body = getBody(msg.Response)
 		m.ReqView.header = msg.Header
-		m.ReqView.SetContent(m.ReqView.body)
 		return m, cmd
 
 	case tea.KeyMsg:
@@ -171,14 +170,9 @@ func getBody(resp *http.Response) string {
 	ct := strings.Split(resp.Header.Get("Content-Type"), ";")[0]
 	if ct == "application/json" {
 		var err error
-		out, err := util.PrettyJSON(b)
-		log.Debug("err: ", err)
+		out, err := json.MarshalIndent(json.RawMessage(b), "", "  ")
 		if err != nil {
-			out, err = json.MarshalIndent(json.RawMessage(b), "", " ")
-			if err != nil {
-				os.WriteFile(fmt.Sprintf("pea-%s.json", time.Now()), b, 0744)
-				return err.Error()
-			}
+			return err.Error()
 		}
 		return string(out)
 	}
