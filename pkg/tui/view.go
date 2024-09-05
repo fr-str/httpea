@@ -61,11 +61,11 @@ var (
 	keyBlue    = "\033[0;34m"
 	strYellow  = "\033[38;2;175;215;95m"
 	boolOrange = "\033[38;5;214m"
-	regKey     = util.Must(regexp.Compile(`^(\s+)("[A-Za-z]+"):`))
-	regValStr  = util.Must(regexp.Compile(`: (".*")`))
-	regValBool = util.Must(regexp.Compile(`: (true|false)`))
+	regKey     = util.Must(regexp.Compile(`^(\s+)(".+"):`))
+	regValStr  = util.Must(regexp.Compile(`(\s+)(".*")`))
+	regValBool = util.Must(regexp.Compile(`(\s+)(true|false)`))
 	// includes float
-	regValNum = util.Must(regexp.Compile(`: ([0-9]+(\.[0-9]+)?)`))
+	regValNum = util.Must(regexp.Compile(`(\s+)([0-9]+(\.[0-9]+)?)`))
 )
 
 func hackedJsonColorizer(s string, limit int) string {
@@ -75,50 +75,64 @@ func hackedJsonColorizer(s string, limit int) string {
 		if len(l) > 0 {
 			hasComma = l[len(l)-1] == ','
 		}
+
 		lineLen := 0
 		key := regKey.FindStringSubmatch(l)
-		if len(key) == 0 {
-			ret += l + "\n"
+		if len(key) != 0 {
+			// color key
+			ret += fmt.Sprintf("%s%s%s%s:", key[1], keyBlue, key[2], resetColor)
+			lineLen += len(key[0])
+			s, match := colorValueIfMatch(l[lineLen:], limit, hasComma)
+			if match {
+				ret += s
+				continue
+			}
+			ret += l[lineLen:]
+			if hasComma {
+				ret += ","
+			}
+			ret += "\n"
 			continue
 		}
 
-		ret += fmt.Sprintf("%s%s%s%s: ", key[1], keyBlue, key[2], resetColor)
-		lineLen += len(key[0])
-
-		if valStr := regValStr.FindStringSubmatch(l); len(valStr) > 0 {
-			ret += format(valStr, limit, lineLen, hasComma)
-			continue
-		}
-		if valBool := regValBool.FindStringSubmatch(l); len(valBool) > 0 {
-			ret += format(valBool, limit, lineLen, hasComma)
-			continue
-		}
-		if valNum := regValNum.FindStringSubmatch(l); len(valNum) > 0 {
-			ret += format(valNum, limit, lineLen, hasComma)
-			continue
-		}
 		// if no match no color and remove key
-		ret += l[len(key[0]):]
-		if hasComma {
-			ret += ","
+		s, match := colorValueIfMatch(l, limit, hasComma)
+		if match {
+			ret += s
+			continue
 		}
-		ret += "\n"
 
+		ret += l + "\n"
 	}
+
 	return ret
 }
 
-func format(val []string, limit int, lineLen int, hasComma bool) string {
+func colorValueIfMatch(s string, limit int, hasComma bool) (string, bool) {
+	lineLen := len(s)
+	if val := regValStr.FindStringSubmatch(s); len(val) > 0 {
+		return smartColor(val, limit, lineLen, hasComma), true
+	}
+	if val := regValBool.FindStringSubmatch(s); len(val) > 0 {
+		return smartColor(val, limit, lineLen, hasComma), true
+	}
+	if val := regValNum.FindStringSubmatch(s); len(val) > 0 {
+		return smartColor(val, limit, lineLen, hasComma), true
+	}
+	return "", false
+}
+
+func smartColor(val []string, limit int, lineLen int, hasComma bool) string {
 	ret := ""
-	if len(val[1]) > limit {
-		ret += writeWithLimit(val[1], strYellow, limit-lineLen)
+	if len(val[2]) > limit {
+		ret += writeWithLimit(val[2], strYellow, limit-lineLen)
 		if hasComma {
 			ret += ","
 		}
 		return ret + "\n"
 
 	}
-	ret += fmt.Sprintf("%s%s%s", strYellow, val[1], resetColor)
+	ret += fmt.Sprintf("%s%s%s%s", val[1], strYellow, val[2], resetColor)
 	if hasComma {
 		ret += ","
 	}
@@ -135,6 +149,7 @@ func writeWithLimit(s string, color string, limit int) string {
 }
 
 // lol works
+// sometimes...
 func nameBorder(s string, name string, forceLen ...int) string {
 	text := []rune(name)
 	b := []rune(s)
