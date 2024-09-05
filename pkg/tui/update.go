@@ -214,9 +214,13 @@ func (m model) handleFocus(msg tea.Msg) (model, tea.Cmd) {
 		case tea.KeyMsg:
 			switch {
 			case key.Matches(ms, m.FileTable.KeyMap.LineUp):
-				cursorPos -= 1
+				if cursorPos != 0 {
+					cursorPos -= 1
+				}
 			case key.Matches(ms, m.FileTable.KeyMap.LineDown):
-				cursorPos += 1
+				if cursorPos != len(m.FileTable.Rows())-1 {
+					cursorPos += 1
+				}
 			}
 
 		}
