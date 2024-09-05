@@ -14,6 +14,7 @@ type keyMap struct {
 	Space key.Binding
 	E     key.Binding
 	C     key.Binding
+	Num   key.Binding
 }
 
 func (k keyMap) ShortHelp() []key.Binding {
@@ -62,5 +63,9 @@ var keys = keyMap{
 	C: key.NewBinding(
 		key.WithKeys("c"),
 		key.WithHelp("c", "edit config"),
+	),
+	Num: key.NewBinding(
+		key.WithKeys("1", "2", "3", "4", "5", "6", "7", "8", "9"),
+		key.WithHelp("1-9", "select file"),
 	),
 }

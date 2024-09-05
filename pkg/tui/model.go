@@ -28,6 +28,7 @@ type model struct {
 	FileView  viewport.Model
 	ReqView   reqView
 	Spinner   spinnerDupa
+	NumBuf    string
 }
 
 type reqView struct {

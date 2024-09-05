@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -84,7 +85,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, cmd
 
 		case key.Matches(msg, m.keys.Up):
+			if m.NumBuf != "" {
+				jump, _ := strconv.Atoi(m.NumBuf)
+				m.FileTable.SetCursor(max(m.FileTable.Cursor()-jump+1, 0))
+				m.NumBuf = ""
+			}
+
 		case key.Matches(msg, m.keys.Down):
+			if m.NumBuf != "" {
+				jump, _ := strconv.Atoi(m.NumBuf)
+				m.FileTable.SetCursor(min(m.FileTable.Cursor()+jump-1, len(m.FileTable.Rows())))
+				m.NumBuf = ""
+			}
+
 		case key.Matches(msg, m.keys.C):
 			return m, openEditor(filepath.Join(config.FileFolder, "config.pea"))
 
@@ -93,8 +106,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, openEditor(util.GetPeaFilePath(f))
 
 		case key.Matches(msg, m.keys.Space):
-			m.handleSelecting()
-			return m, cmd
+			// m.handleSelecting()
+			// return m, cmd
 
 		case key.Matches(msg, m.keys.Enter):
 			file := m.FileTable.SelectedRow()[2]
@@ -104,6 +117,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keys.Help):
 			m.help.ShowAll = !m.help.ShowAll
 			return m, cmd
+
+		case key.Matches(msg, m.keys.Num):
+			log.Debug("[dupa] msg.String(): ", msg.String())
+			m.NumBuf += msg.String()
+			log.Debug("[dupa] m.NumBuf: ", m.NumBuf)
+
+		default:
+			m.NumBuf = ""
 		}
 	}
 
@@ -188,11 +209,26 @@ func (m model) handleFocus(msg tea.Msg) (model, tea.Cmd) {
 	m.FileTable.Blur()
 	switch m.focus {
 	case 0:
+		cursorPos := m.FileTable.Cursor()
+		switch ms := msg.(type) {
+		case tea.KeyMsg:
+			switch {
+			case key.Matches(ms, m.FileTable.KeyMap.LineUp):
+				cursorPos -= 1
+			case key.Matches(ms, m.FileTable.KeyMap.LineDown):
+				cursorPos += 1
+			}
+
+		}
 		m.FileTable.Focus()
 		rows := []components.Row{}
-		for _, f := range listFiles() {
-			d, _ := pea.GetRequestDataFromFile(f, m.client.Env)
-			rows = append(rows, components.Row{m.reSelect(f), d.Method, f})
+		for i, file := range listFiles() {
+			d, _ := pea.GetRequestDataFromFile(file, m.client.Env)
+			rows = append(rows, components.Row{
+				relativeFromIndex(i, cursorPos),
+				d.Method,
+				file,
+			})
 		}
 		m.FileTable.SetRows(rows)
 		m.FileTable, cmd = m.FileTable.Update(msg)
@@ -203,6 +239,16 @@ func (m model) handleFocus(msg tea.Msg) (model, tea.Cmd) {
 	}
 
 	return m, cmd
+}
+
+func relativeFromIndex(idx, pos int) string {
+	if idx == pos {
+		return "0"
+	}
+	if idx < pos {
+		return fmt.Sprint(pos - idx)
+	}
+	return fmt.Sprint(idx - pos)
 }
 
 func (m *model) reSelect(f string) string {
