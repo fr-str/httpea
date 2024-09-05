@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/fr-str/httpea/internal/log"
 	"github.com/fr-str/httpea/internal/util"
 )
 
@@ -32,6 +33,10 @@ func (m model) View() string {
 		duration = m.Spinner.View()
 		// ¯\_(ツ)_/¯
 		lenDur = len(duration) - 8
+		log.Debug("[dupa] m.ReqView.reqDuration < time.Millisecond: ", m.ReqView.reqDuration < time.Millisecond)
+	} else if m.ReqView.reqDuration < time.Millisecond && m.ReqView.reqDuration != 0 {
+		// ¯\_(ツ)_/¯
+		lenDur = len(duration) - 3
 	}
 
 	// colour JSON
