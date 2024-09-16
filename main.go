@@ -49,6 +49,9 @@ func main() {
 }
 
 func startTUI() {
+	// b, _ := os.ReadFile("example.json")
+	// fmt.Println(tui.FixedJQ(string(b), 20))
+	// return
 	// m := tui.InitialModel()
 	// mo, _ := m.Update(tea.WindowSizeMsg{
 	// 	Width:  120,

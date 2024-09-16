@@ -1,0 +1,33 @@
+[1;39m{
+  [0m[1;34m"array_num"[0m[1;39m: [0m[1;39m[
+    [0;39m123[0m[1;39m,
+    [0;39m123123123113.56456[0m[1;39m,
+    [0;39m123123123113.56456[0m[1;39m
+  [1;39m][0m[1;39m,
+  [0m[1;34m"array_string"[0m[1;39m: [0m[1;39m[
+    [0;32m"alskdjalk"[0m[1;39m,
+    [0;32m"askldjalskdaljdlajdldsjadlkasdkjladjlakjdlksajdlajdlskdjalk"[0m[1;39m
+  [1;39m][0m[1;39m,
+  [0m[1;34m"num"[0m[1;39m: [0m[0;39m123[0m[1;39m,
+  [0m[1;34m"num_longsadkalsdkjlad"[0m[1;39m: [0m[0;39m123123123113.56456[0m[1;39m,
+  [0m[1;34m"object"[0m[1;39m: [0m[1;39m{
+    [0m[1;34m"aoneona"[0m[1;39m: [0m[0;39m1[0m[1;39m,
+    [0m[1;34m"array_num"[0m[1;39m: [0m[1;39m[
+      [0;39m123[0m[1;39m,
+      [0;39m123123123113.56456[0m[1;39m,
+      [0;39m123123123113.56456[0m[1;39m
+    [1;39m][0m[1;39m,
+    [0m[1;34m"array_string"[0m[1;39m: [0m[1;39m[
+      [0;32m"alskdjalk"[0m[1;39m,
+      [0;32m"askldjalskdaljdlajdldsjadlkasdkjladjlakjdlksajdlajdlskdjalk"[0m[1;39m
+    [1;39m][0m[1;39m,
+    [0m[1;34m"nested"[0m[1;39m: [0m[1;39m{
+      [0m[1;34m"one"[0m[1;39m: [0m[0;32m"one"[0m[1;39m,
+      [0m[1;34m"two"[0m[1;39m: [0m[0;32m"two"[0m[1;39m
+    [1;39m}[0m[1;39m,
+    [0m[1;34m"one"[0m[1;39m: [0m[0;32m"one"[0m[1;39m,
+    [0m[1;34m"two"[0m[1;39m: [0m[0;32m"two"[0m[1;39m
+  [1;39m}[0m[1;39m,
+  [0m[1;34m"string"[0m[1;39m: [0m[0;32m"alskdjalk"[0m[1;39m,
+  [0m[1;34m"string_long"[0m[1;39m: [0m[0;32m"askldjalskdaljdlajdldsjadlkasdkjladjlakjdlksajdlajdlskdjalk"[0m[1;39m
+[1;39m}[0m

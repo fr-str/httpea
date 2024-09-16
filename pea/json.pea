@@ -1,0 +1,6 @@
+[Host]
+http://localhost:${PORT}/json
+
+[Method]
+GET
+

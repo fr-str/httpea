@@ -1,9 +1,9 @@
 package tui
 
 import (
+	"bytes"
 	"fmt"
 	"regexp"
-	"strings"
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
@@ -33,7 +33,6 @@ func (m model) View() string {
 		duration = m.Spinner.View()
 		// ¯\_(ツ)_/¯
 		lenDur = len(duration) - 8
-		log.Debug("[dupa] m.ReqView.reqDuration < time.Millisecond: ", m.ReqView.reqDuration < time.Millisecond)
 	} else if m.ReqView.reqDuration < time.Millisecond && m.ReqView.reqDuration != 0 {
 		// ¯\_(ツ)_/¯
 		lenDur = len(duration) - 3
@@ -41,7 +40,8 @@ func (m model) View() string {
 
 	// colour JSON
 	if m.ReqView.header != nil && m.ReqView.header.Get("Content-Type") == "application/json" {
-		m.ReqView.SetContent(hackedJsonColorizer(m.ReqView.Body, m.ReqView.Width-1))
+		m.ReqView.SetContent(FixedJQ(m.ReqView.Body, m.ReqView.Width-1))
+		// m.ReqView.SetContent(hackedJsonColorizer(m.ReqView.Body, m.ReqView.Width-1))
 	} else {
 		m.ReqView.SetContent(m.ReqView.Body)
 	}
@@ -62,95 +62,90 @@ func (m model) View() string {
 }
 
 var (
-	resetColor = "\033[0m"
-	keyBlue    = "\033[0;34m"
-	strYellow  = "\033[38;2;175;215;95m"
-	boolOrange = "\033[38;5;214m"
-	regKey     = util.Must(regexp.Compile(`^(\s+)(".+"):`))
-	regValStr  = util.Must(regexp.Compile(`(\s+)(".*")`))
-	regValBool = util.Must(regexp.Compile(`(\s+)(true|false)`))
-	// includes float
-	regValNum = util.Must(regexp.Compile(`(\s+)([0-9]+(\.[0-9]+)?)`))
+	resetColor         = "\033[0m"
+	regANSIIColor      = util.Must(regexp.Compile(`\033\[[0-9];[0-9]+m`))
+	regANSIIResetColor = util.Must(regexp.Compile(`\033\[0m`))
 )
 
-func hackedJsonColorizer(s string, limit int) string {
-	ret := ""
-	for _, l := range strings.Split(s, "\n") {
-		hasComma := false
-		if len(l) > 0 {
-			hasComma = l[len(l)-1] == ','
-		}
+func FixedJQ(s string, limit int) string {
+	b, _ := util.PrettyJSON([]byte(s))
 
-		lineLen := 0
-		key := regKey.FindStringSubmatch(l)
-		if len(key) != 0 {
-			// color key
-			ret += fmt.Sprintf("%s%s%s%s:", key[1], keyBlue, key[2], resetColor)
-			lineLen += len(key[0])
-			s, match := colorValueIfMatch(l[lineLen:], limit, hasComma)
-			if match {
-				ret += s
-				continue
-			}
-			ret += l[lineLen:]
-			if hasComma {
-				ret += ","
-			}
-			ret += "\n"
+	ret := bytes.NewBuffer(make([]byte, 0, len(b)))
+	for _, l := range bytes.Split(b, []byte("\n")) {
+		f := regANSIIColor.FindAllIndex(l, -1)
+		if len(f) == 0 {
 			continue
 		}
-
-		// if no match no color and remove key
-		s, match := colorValueIfMatch(l, limit, hasComma)
-		if match {
-			ret += s
-			continue
+		colors := regANSIIColor.FindAll(l, -1)
+		color := []byte{}
+		if len(colors) == 1 {
+			color = colors[0]
+		} else {
+			color = colors[len(colors)-2]
 		}
 
-		ret += l + "\n"
-	}
-
-	return ret
-}
-
-func colorValueIfMatch(s string, limit int, hasComma bool) (string, bool) {
-	lineLen := len(s)
-	if val := regValStr.FindStringSubmatch(s); len(val) > 0 {
-		return smartColor(val, limit, lineLen, hasComma), true
-	}
-	if val := regValBool.FindStringSubmatch(s); len(val) > 0 {
-		return smartColor(val, limit, lineLen, hasComma), true
-	}
-	if val := regValNum.FindStringSubmatch(s); len(val) > 0 {
-		return smartColor(val, limit, lineLen, hasComma), true
-	}
-	return "", false
-}
-
-func smartColor(val []string, limit int, lineLen int, hasComma bool) string {
-	ret := ""
-	if len(val[2]) > limit {
-		ret += writeWithLimit(val[2], strYellow, limit-lineLen)
-		if hasComma {
-			ret += ","
+		lastIdx := f[len(f)-1][1]
+		// ignore escape codes in line wreapping
+		tmp := regANSIIColor.ReplaceAll(l, []byte{})
+		tmp = regANSIIResetColor.ReplaceAll(tmp, []byte{})
+		if len(tmp) > limit {
+			writeWithLimit(ret, string(l[:lastIdx]), string(color), limit)
+		} else {
+			ret.WriteString(fmt.Sprintf("%s%s%s", color, l[:lastIdx], resetColor))
 		}
-		return ret + "\n"
+		ret.Write(l[lastIdx:])
+		ret.Write([]byte(resetColor))
+		ret.WriteString("\n")
+	}
 
-	}
-	ret += fmt.Sprintf("%s%s%s%s", val[1], strYellow, val[2], resetColor)
-	if hasComma {
-		ret += ","
-	}
-	return ret + "\n"
+	// return ""
+	return ret.String()
+
 }
 
-func writeWithLimit(s string, color string, limit int) string {
-	if len(s) > limit {
-		ret := fmt.Sprintf("%s%s%s\n", color, s[:limit], resetColor)
-		ret += fmt.Sprintf("%s%s%s\n", color, s[limit:], resetColor)
-		return ret
+func writeWithLimit(w *bytes.Buffer, s string, color string, limit int) {
+	tmp := s
+	space := spceLen(s)
+	first := true
+	for len(removeANSII(tmp)) > limit {
+		ansiL := ansiiLen(tmp)
+		log.Debug("ansiL", ansiL)
+		line := tmp[:limit+ansiL]
+		if !first {
+			line = space + line
+		}
+		first = false
+		w.WriteString(fmt.Sprintf("%s%s%s\n", color, line, resetColor))
+		tmp = tmp[len(line):]
+		log.Debug("[dupa] tmp: ", tmp)
 	}
-	return fmt.Sprintf("%s%s%s\n", color, s, resetColor)
+	w.WriteString(fmt.Sprintf("%s%s%s", color, space+tmp, resetColor))
+}
+
+func removeANSII(s string) string {
+	s = string(regANSIIColor.ReplaceAll([]byte(s), []byte{}))
+	return string(regANSIIResetColor.ReplaceAll([]byte(s), []byte{}))
+}
+
+func ansiiLen(s string) int {
+	f1 := regANSIIColor.FindAllString(s, -1)
+	f2 := regANSIIResetColor.FindAllString(s, -1)
+	count := 0
+	for _, v := range f1 {
+		count += len(v)
+	}
+	for _, v := range f2 {
+		count += len(v)
+	}
+	return count
+}
+
+func spceLen(s string) string {
+	count := 0
+	for i := 0; s[i] == ' '; i++ {
+		count++
+	}
+	return s[:count]
 }
 
 // lol works
